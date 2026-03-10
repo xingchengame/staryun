@@ -1,0 +1,61 @@
+name: PR Close Reason with Labels
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  add-reason:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.state == 'closed' && github.event.pull_request.merged == false
+    steps:
+      - name: Prompt for close reason
+        id: reason
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: YOUR_GITHUB_USERNAME  # 替换成你的 GitHub 用户名
+          minimum-approvals: 1
+          issue-title: "选择此 PR 的关闭原因"
+          issue-body: |
+            请选择关闭此 PR 的原因：
+            - **duplicate**: 重复的 PR/Issue
+            - **stale**: 过时/不再需要
+            - **wontfix**: 其他原因（不计划处理）
+          exclude-workflow-initiator-as-approver: false
+
+      - name: Set label based on reason
+        id: set-label
+        run: |
+          if [[ "${{ steps.reason.outputs.approvals }}" == *"duplicate"* ]]; then
+            echo "label=duplicate" >> $GITHUB_OUTPUT
+            echo "comment=此 PR 为重复内容，已关联到相关 Issue/PR。" >> $GITHUB_OUTPUT
+          elif [[ "${{ steps.reason.outputs.approvals }}" == *"stale"* ]]; then
+            echo "label=stale" >> $GITHUB_OUTPUT
+            echo "comment=此 PR 已过时，当前需求已变更或功能已实现。" >> $GITHUB_OUTPUT
+          else
+            echo "label=wontfix" >> $GITHUB_OUTPUT
+            echo "comment=此 PR 暂不计划处理，感谢贡献！" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add label to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['${{ steps.set-label.outputs.label }}']
+            })
+
+      - name: Add comment to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '${{ steps.set-label.outputs.comment }}'
+            })
