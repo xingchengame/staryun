@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>星际互联 - 账号登录/注册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", "PingFang SC", sans-serif;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        /* 全局配色变量（和首页完全统一） */
+        :root {
+            --primary-blue: #002699;
+            --light-blue: #409eff;
+            --deep-blue: #001440;
+            --gold-primary: #ffd700;
+            --gold-deep: #b8860b;
+            --gold-light: #fffacd;
+            --text-white: #ffffff;
+            --text-gray: #e0e6ff;
+            --input-bg: rgba(0, 15, 40, 0.6);
+            --card-bg: rgba(0, 20, 60, 0.7);
+            --danger-red: #ff4d4f;
+        }
+
+        /* 背景与动画（和首页完全统一） */
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: 
+                linear-gradient(110deg, 
+                    transparent 0%, 
+                    rgba(255, 250, 205, 0.3) 45%, 
+                    rgba(255, 255, 255, 0.4) 50%, 
+                    rgba(255, 250, 205, 0.3) 55%, 
+                    transparent 100%),
+                repeating-linear-gradient(45deg, 
+                    rgba(184, 134, 11, 0.25) 0px, 
+                    rgba(255, 215, 0, 0.08) 10px, 
+                    rgba(184, 134, 11, 0.25) 20px),
+                radial-gradient(ellipse at center, var(--deep-blue) 0%, #000a26 100%);
+            background-size: 200% 200%, 200% 200%, 100% 100%;
+            background-attachment: fixed;
+            overflow-x: hidden;
+            animation: waveFlow 8s linear infinite, lightSweep 6s ease-in-out infinite;
+        }
+
+        /* 动画关键帧 */
+        @keyframes waveFlow {
+            0% { background-position: 0 0, 0 0, center; }
+            100% { background-position: 0 0, 200px 200px, center; }
+        }
+        @keyframes lightSweep {
+            0% { background-position: -200% 0, 0 0, center; }
+            100% { background-position: 200% 0, 0 0, center; }
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* 顶部导航栏（100%和首页一致） */
+        .navbar {
+            width: 100%;
+            height: 60px;
+            background: rgba(0, 20, 60, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            padding: 0 clamp(15px, 5vw, 40px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 2vw, 12px);
+            flex-shrink: 0;
+        }
+        .nav-logo img {
+            height: clamp(32px, 5vw, 40px);
+            object-fit: contain;
+        }
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: clamp(20px, 4vw, 40px);
+            margin-left: clamp(30px, 5vw, 60px);
+        }
+        .nav-item {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: clamp(14px, 2vw, 16px);
+            transition: color 0.3s ease;
+            position: relative;
+        }
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--light-blue);
+            transition: width 0.3s ease;
+        }
+        .nav-item:hover {
+            color: var(--light-blue);
+        }
+        .nav-item:hover::after {
+            width: 100%;
+        }
+
+        /* 汉堡菜单按钮（全设备通用） */
+        .hamburger-btn {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: auto;
+        }
+        .hamburger-btn span {
+            width: 24px;
+            height: 2px;
+            background: var(--text-white);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        /* 移动端侧边栏 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 280px;
+            height: 100vh;
+            background: rgba(0, 20, 60, 0.98);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            transition: right 0.4s ease;
+            padding: 80px 30px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        .sidebar.active {
+            right: 0;
+        }
+        .sidebar-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-white);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .sidebar-item {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: 18px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: color 0.3s ease;
+        }
+        .sidebar-item:hover {
+            color: var(--light-blue);
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0,0,0,0.6);
+            z-index: 199;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* 全设备统一布局 */
+        .main-container {
+            width: 100%;
+            min-height: 100vh;
+            padding: 80px 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* 登录注册卡片容器 */
+        .form-card {
+            width: 100%;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 25px;
+            border: 1px solid rgba(64, 158, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            padding: 30px 20px;
+            overflow: hidden;
+        }
+
+        /* 横向滚动公告条 */
+        .mobile-marquee {
+            width: 100%;
+            height: 44px;
+            line-height: 44px;
+            background: rgba(0, 20, 60, 0.6);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+        .marquee-content {
+            display: flex;
+            width: 200%;
+            animation: marquee 15s linear infinite;
+        }
+        .marquee-content span {
+            width: 100%;
+            flex-shrink: 0;
+            color: var(--text-gray);
+            font-size: 15px;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* Tab标签栏 */
+        .mobile-tab-bar {
+            width: 100%;
+            display: flex;
+            margin-bottom: 25px;
+        }
+        .mobile-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-gray);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .mobile-tab.active {
+            color: var(--gold-primary);
+        }
+        .mobile-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--gold-primary);
+            border-radius: 2px;
+        }
+
+        /* 左右滑动表单容器 */
+        .mobile-form-wrapper {
+            width: calc(200% + 60px);
+            display: flex;
+            transition: transform 0.4s ease;
+            overflow: visible;
+        }
+        .mobile-form-panel {
+            width: calc(50% - 30px);
+            flex-shrink: 0;
+            padding: 0 10px;
+            overflow: hidden;
+        }
+        .mobile-form-panel + .mobile-form-panel {
+            margin-left: 60px;
+        }
+
+        /* 表单输入框样式 */
+        .mobile-form-group {
+            margin-bottom: 22px;
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+        .mobile-form-group label {
+            display: block;
+            font-size: 16px;
+            color: var(--text-white);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .mobile-form-input {
+            width: 100%;
+            height: 56px;
+            padding: 0 20px;
+            background: var(--input-bg);
+            border: 1px solid rgba(64, 158, 255, 0.3);
+            border-radius: 12px;
+            color: var(--text-white);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        /* 验证码输入框+按钮同行布局 */
+        .code-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .code-input-group .mobile-form-input {
+            flex: 1;
+        }
+        .send-code-btn {
+            flex-shrink: 0;
+            width: 120px;
+            height: 56px;
+            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--light-blue) 100%);
+            border: none;
+            border-radius: 12px;
+            color: var(--text-white);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .send-code-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 输入框左侧蓝色高亮条 */
+        .mobile-form-group::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 34px;
+            width: 6px;
+            height: 56px;
+            background: var(--light-blue);
+            border-radius: 3px 0 0 3px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .mobile-form-group:focus-within::before {
+            opacity: 1;
+        }
+        .mobile-form-input:focus {
+            outline: none;
+            border-color: var(--light-blue);
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+        }
+        .mobile-form-input::placeholder {
+            color: rgba(224, 230, 255, 0.5);
+        }
+
+        /* 忘记密码链接 */
+        .forget-pwd {
+            text-align: right;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+        .forget-pwd a {
+            color: var(--light-blue);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* 提交按钮样式 */
+        .mobile-form-btn {
+            width: 100%;
+            height: 60px;
+            margin-top: 10px;
+            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--light-blue) 100%);
+            border: none;
+            border-radius: 15px;
+            color: var(--text-white);
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .mobile-form-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .danger-btn {
+            background: linear-gradient(90deg, #d93025 0%, var(--danger-red) 100%);
+        }
+
+        /* 忘记密码面板 */
+        .forget-panel {
+            width: 100%;
+            display: none;
+        }
+        .forget-panel.active {
+            display: block;
+        }
+        .form-wrapper-hidden {
+            display: none;
+        }
+
+        /* 提示弹窗样式 */
+        .toast {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .toast.success {
+            background: #52c41a;
+        }
+        .toast.error {
+            background: var(--danger-red);
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* 小屏适配 */
+        @media screen and (max-width: 768px) {
+            .nav-menu {
+                display: none !important;
+            }
+            .hamburger-btn {
+                display: flex !important;
+            }
+            .main-container {
+                padding: 80px 15px 30px;
+            }
+            .form-card {
+                padding: 25px 15px;
+            }
+            .mobile-tab {
+                font-size: 22px;
+            }
+            .mobile-form-input {
+                height: 52px;
+                font-size: 15px;
+            }
+            .send-code-btn {
+                width: 100px;
+                height: 52px;
+                font-size: 12px;
+            }
+            .mobile-form-btn {
+                height: 56px;
+                font-size: 18px;
+            }
+            .mobile-form-group {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-logo">
+            <img src="/jpg/logo1.jpg" alt="平台logo">
+            <img src="/jpg/logo2.jpg" alt="品牌logo">
+        </div>
+        <div class="nav-menu">
+            <a href="/html/index.html" class="nav-item">首页</a>
+            <a href="#" class="nav-item">节点状态</a>
+            <a href="#" class="nav-item">整合包广场</a>
+            <a href="#" class="nav-item">游戏市场</a>
+        </div>
+        <button class="hamburger-btn" id="hamburgerBtn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </nav>
+
+    <!-- 移动端侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose">×</button>
+        <a href="/html/index.html" class="sidebar-item">首页</a>
+        <a href="#" class="sidebar-item">节点状态</a>
+        <a href="#" class="sidebar-item">整合包广场</a>
+        <a href="#" class="sidebar-item">游戏市场</a>
+        <a href="#" class="sidebar-item">个人中心</a>
+        <a href="#" class="sidebar-item">客服支持</a>
+    </div>
+    <div class="overlay" id="overlay"></div>
+
+    <!-- 提示弹窗 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 页面主体内容 -->
+    <div class="main-container">
+        <div class="form-card">
+            <!-- 横向滚动公告条 -->
+            <div class="mobile-marquee">
+                <div class="marquee-content">
+                    <span>强大防护防火墙 | 7×24小时专业售后 | 天津骨干节点超低延迟 | 高性能稳定服务器 | 全国多线BGP骨干网 | 高防抗攻击不掉线</span>
+                    <span>强大防护防火墙 | 7×24小时专业售后 | 天津骨干节点超低延迟 | 高性能稳定服务器 | 全国多线BGP骨干网 | 高防抗攻击不掉线</span>
+                </div>
+            </div>
+
+            <!-- Tab标签栏 -->
+            <div class="mobile-tab-bar">
+                <div class="mobile-tab active" data-tab="login">登录</div>
+                <div class="mobile-tab" data-tab="register">注册</div>
+            </div>
+
+            <!-- 登录/注册表单容器 -->
+            <div class="form-main-wrapper" id="formMainWrapper">
+                <!-- 左右滑动表单包装器 -->
+                <div class="mobile-form-wrapper" id="mobileFormWrapper">
+                    <!-- 登录面板 -->
+                    <div class="mobile-form-panel" id="loginPanel">
+                        <div class="mobile-form-group">
+                            <label>用户名/邮箱</label>
+                            <input type="text" class="mobile-form-input" id="loginUsername" placeholder="请输入用户名或邮箱">
+                        </div>
+                        <div class="mobile-form-group">
+                            <label>密码</label>
+                            <input type="password" class="mobile-form-input" id="loginPassword" placeholder="请输入登录密码">
+                        </div>
+                        <div class="forget-pwd">
+                            
+                        </div>
+                        <button class="mobile-form-btn" id="loginBtn">立即登录</button>
+                    </div>
+
+                    <!-- 注册面板（新增验证码） -->
+                    <div class="mobile-form-panel" id="registerPanel">
+                        <div class="mobile-form-group">
+                            <label>用户名</label>
+                            <input type="text" class="mobile-form-input" id="registerUsername" placeholder="请设置用户名">
+                        </div>
+                        <div class="mobile-form-group">
+                            <label>邮箱地址</label>
+                            <input type="email" class="mobile-form-input" id="registerEmail" placeholder="请输入您的邮箱">
+                        </div>
+                        <!-- 验证码输入框+发送按钮 -->
+                        <div class="mobile-form-group">
+                            <label>邮箱验证码</label>
+                            <div class="code-input-group">
+                                <input type="text" class="mobile-form-input" id="registerCode" placeholder="请输入6位验证码" maxlength="6">
+                                <button class="send-code-btn" id="sendCodeBtn">发送验证码</button>
+                            </div>
+                        </div>
+                        <div class="mobile-form-group">
+                            <label>设置密码</label>
+                            <input type="password" class="mobile-form-input" id="registerPassword" placeholder="请设置8-20位登录密码">
+                        </div>
+                        <div class="mobile-form-group">
+                            <label>确认密码</label>
+                            <input type="password" class="mobile-form-input" id="registerConfirmPwd" placeholder="请再次输入密码">
+                        </div>
+                        <button class="mobile-form-btn" id="registerBtn">立即注册</button>
+                    </div>
+                </div>
+
+                <!-- 忘记密码面板 -->
+                <div class="forget-panel" id="forgetPanel">
+                    <div class="mobile-form-group">
+                        <label>邮箱地址</label>
+                        <input type="email" class="mobile-form-input" id="forgetEmail" placeholder="请输入您的注册邮箱">
+                    </div>
+                    <button class="mobile-form-btn" id="forgetBtn">发送重置邮件</button>
+                    <div class="form-switch" style="text-align: center; margin-top: 20px;">
+                        <a id="backToLogin" style="color: var(--light-blue); cursor: pointer;">返回登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 后端接口地址
+        const API_BASE = "http://112.44.222.69:30072";
+
+        // 提示弹窗工具
+        function showToast(message, type = "success") {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                toast.className = "toast";
+            }, 3000);
+        }
+
+        // ===================== 导航栏功能 =====================
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const overlay = document.getElementById('overlay');
+
+        function openSidebar() {
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', closeSidebar);
+        });
+
+        // ===================== Tab切换+左右滑动功能 =====================
+        const mobileTabs = document.querySelectorAll('.mobile-tab');
+        const mobileFormWrapper = document.getElementById('mobileFormWrapper');
+        const formMainWrapper = document.getElementById('formMainWrapper');
+        const forgetPanel = document.getElementById('forgetPanel');
+
+        function switchMobileTab(type) {
+            mobileTabs.forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === type);
+            });
+            mobileFormWrapper.style.transform = type === 'login' ? 'translateX(0)' : 'translateX(calc(-50% - 30px))';
+        }
+
+        mobileTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                switchMobileTab(tab.dataset.tab);
+            });
+        });
+
+        // 左右滑动切换
+        let startX = 0;
+        mobileFormWrapper.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+        mobileFormWrapper.addEventListener('touchend', e => {
+            const endX = e.changedTouches[0].clientX;
+            const isLeftSwipe = endX - startX < -50;
+            const isRightSwipe = endX - startX > 50;
+            if(isLeftSwipe) switchMobileTab('register');
+            if(isRightSwipe) switchMobileTab('login');
+        });
+
+        // 忘记密码/返回登录切换
+        const toForget = document.getElementById('toForget');
+        const backToLogin = document.getElementById('backToLogin');
+        toForget.addEventListener('click', () => {
+            formMainWrapper.classList.add('form-wrapper-hidden');
+            forgetPanel.classList.add('active');
+        });
+        backToLogin.addEventListener('click', () => {
+            formMainWrapper.classList.remove('form-wrapper-hidden');
+            forgetPanel.classList.remove('active');
+        });
+
+        // ===================== 验证码发送+倒计时功能 =====================
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        let countdown = 60;
+        let countdownTimer = null;
+
+        // 发送验证码
+        sendCodeBtn.addEventListener('click', async () => {
+            const email = document.getElementById('registerEmail').value.trim();
+            // 校验邮箱格式
+            const emailReg = /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/;
+            if(!email || !emailReg.test(email)) {
+                return showToast("请输入正确的邮箱地址", "error");
+            }
+
+            sendCodeBtn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/api/send-code`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, type: "register" })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    showToast("验证码已发送，请注意查收");
+                    // 启动倒计时
+                    startCountdown();
+                } else {
+                    showToast(data.detail || "发送失败", "error");
+                    sendCodeBtn.disabled = false;
+                }
+            } catch (e) {
+                showToast("网络错误，请检查后端服务", "error");
+                sendCodeBtn.disabled = false;
+            }
+        });
+
+        // 倒计时函数
+        function startCountdown() {
+            countdown = 60;
+            sendCodeBtn.innerText = `${countdown}秒后重发`;
+            countdownTimer = setInterval(() => {
+                countdown--;
+                sendCodeBtn.innerText = `${countdown}秒后重发`;
+                if(countdown <= 0) {
+                    clearInterval(countdownTimer);
+                    sendCodeBtn.innerText = "发送验证码";
+                    sendCodeBtn.disabled = false;
+                }
+            }, 1000);
+        }
+
+        // ===================== 后端API对接 =====================
+        // 登录功能
+        const loginBtn = document.getElementById('loginBtn');
+        loginBtn.addEventListener('click', async () => {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            if(!username || !password) {
+                return showToast("请输入用户名和密码", "error");
+            }
+
+            loginBtn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/api/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    showToast("登录成功！正在跳转...");
+                    localStorage.setItem("userInfo", JSON.stringify(data.user));
+                    setTimeout(() => window.location.href = "/html/index.html", 1500);
+                } else {
+                    showToast(data.detail || "登录失败", "error");
+                }
+            } catch (e) {
+                showToast("网络错误，请检查后端服务", "error");
+            } finally {
+                loginBtn.disabled = false;
+            }
+        });
+
+        // 注册功能（新增验证码校验）
+        const registerBtn = document.getElementById('registerBtn');
+        registerBtn.addEventListener('click', async () => {
+            const username = document.getElementById('registerUsername').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const code = document.getElementById('registerCode').value.trim();
+            const password = document.getElementById('registerPassword').value.trim();
+            const confirmPwd = document.getElementById('registerConfirmPwd').value.trim();
+
+            // 校验必填项
+            if(!username || !email || !code || !password) {
+                return showToast("请填写完整信息", "error");
+            }
+            // 校验验证码长度
+            if(code.length !== 6) {
+                return showToast("请输入6位正确的验证码", "error");
+            }
+            // 校验密码
+            if(password !== confirmPwd) {
+                return showToast("两次输入的密码不一致", "error");
+            }
+            if(password.length < 8 || password.length > 20) {
+                return showToast("密码长度需为8-20位", "error");
+            }
+
+            registerBtn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/api/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, code, password })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    showToast("注册成功！即将跳转到登录");
+                    // 注册成功后清空表单，跳转到登录
+                    document.getElementById('registerUsername').value = '';
+                    document.getElementById('registerEmail').value = '';
+                    document.getElementById('registerCode').value = '';
+                    document.getElementById('registerPassword').value = '';
+                    document.getElementById('registerConfirmPwd').value = '';
+                    clearInterval(countdownTimer);
+                    sendCodeBtn.innerText = "发送验证码";
+                    sendCodeBtn.disabled = false;
+                    setTimeout(() => switchMobileTab('login'), 1500);
+                } else {
+                    showToast(data.detail || "注册失败", "error");
+                }
+            } catch (e) {
+                showToast("网络错误，请检查后端服务", "error");
+            } finally {
+                registerBtn.disabled = false;
+            }
+        });
+
+        // 忘记密码功能
+        const forgetBtn = document.getElementById('forgetBtn');
+        forgetBtn.addEventListener('click', async () => {
+            const email = document.getElementById('forgetEmail').value.trim();
+            if(!email) {
+                return showToast("请输入注册邮箱", "error");
+            }
+
+            forgetBtn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/api/forget-password`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    showToast("重置邮件已发送，请查收");
+                    backToLogin.click();
+                } else {
+                    showToast(data.detail || "发送失败", "error");
+                }
+            } catch (e) {
+                showToast("网络错误，请检查后端服务", "error");
+            } finally {
+                forgetBtn.disabled = false;
+            }
+        });
+
+        // 回车登录/注册
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') {
+                if(forgetPanel.classList.contains('active')) {
+                    forgetBtn.click();
+                } else if(mobileTabs[1].classList.contains('active')) {
+                    registerBtn.click();
+                } else {
+                    loginBtn.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
