@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>星际互联 - 高性能游戏云服务</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", "PingFang SC", sans-serif;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        :root {
+            --primary-blue: #002699;
+            --light-blue: #409eff;
+            --deep-blue: #001440;
+            --gold-primary: #ffd700;
+            --gold-deep: #b8860b;
+            --gold-light: #fffacd;
+            --text-white: #ffffff;
+            --text-gray: #e0e6ff;
+        }
+
+        /* ===================== 核心层级逻辑 ===================== */
+        /* 最底层：全局固定金色波纹背景 */
+        html, body {
+            width: 100%;
+            min-height: 600vh; /* 6倍视口高度，对应6个滚动阶段 */
+            margin: 0;
+            padding: 0;
+            /* 金色波纹+反光背景，固定不动 */
+            background: 
+                linear-gradient(110deg, 
+                    transparent 0%, 
+                    rgba(255, 250, 205, 0.4) 45%, 
+                    rgba(255, 255, 255, 0.6) 50%, 
+                    rgba(255, 250, 205, 0.4) 55%, 
+                    transparent 100%),
+                repeating-linear-gradient(45deg, 
+                    rgba(184, 134, 11, 0.3) 0px, 
+                    rgba(255, 215, 0, 0.1) 10px, 
+                    rgba(184, 134, 11, 0.3) 20px),
+                radial-gradient(ellipse at center, #ffd700 0%, #b8860b 60%, #8b6914 100%);
+            background-size: 200% 200%, 200% 200%, 100% 100%;
+            background-attachment: fixed;
+            overflow-x: hidden;
+            /* 金色背景动画 */
+            animation: waveFlow 8s linear infinite, lightSweep 6s ease-in-out infinite;
+        }
+
+        /* 波纹流动动画 */
+        @keyframes waveFlow {
+            0% { background-position: 0 0, 0 0, center; }
+            100% { background-position: 0 0, 200px 200px, center; }
+        }
+
+        /* 金属扫光反光动画 */
+        @keyframes lightSweep {
+            0% { background-position: -200% 0, 0 0, center; }
+            100% { background-position: 200% 0, 0 0, center; }
+        }
+
+        /* 繁星闪烁动画 */
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* ===================== 置顶顶部栏（最顶层） ===================== */
+        /* 顶部提示条 */
+        .top-banner {
+            width: 100%;
+            min-height: 40px;
+            background: rgba(0, 30, 80, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 101;
+            padding: 8px 50px 8px 20px;
+        }
+
+        .banner-text {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: clamp(12px, 3vw, 14px);
+            flex: 1;
+            text-align: center;
+            transition: color 0.3s ease;
+            line-height: 1.4;
+        }
+
+        .banner-text:hover {
+            color: var(--light-blue);
+        }
+
+        .banner-close {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-white);
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 8px;
+            line-height: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .banner-close:hover {
+            opacity: 0.7;
+        }
+
+        /* 顶部导航栏 - 玻璃拟态效果 */
+        .navbar {
+            width: 100%;
+            height: 70px;
+            background: linear-gradient(135deg, rgba(0, 20, 60, 0.9) 0%, rgba(0, 40, 100, 0.85) 100%);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 50px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .navbar:hover {
+            background: linear-gradient(135deg, rgba(0, 25, 70, 0.95) 0%, rgba(0, 50, 120, 0.9) 100%);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .nav-logo img {
+            height: 42px;
+            object-fit: contain;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .nav-logo img:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 45px;
+            margin-left: 60px;
+        }
+
+        .nav-item {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            padding: 8px 0;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--light-blue), transparent);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(-50%);
+        }
+
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--light-blue);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(-50%) scale(0);
+            box-shadow: 0 0 10px var(--light-blue);
+        }
+
+        .nav-item:hover {
+            color: var(--light-blue);
+            text-shadow: 0 0 20px rgba(64, 158, 255, 0.5);
+        }
+
+        .nav-item:hover::before {
+            width: 100%;
+        }
+
+        .nav-item:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        .nav-user {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .login-btn {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 10px 24px;
+            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(64, 158, 255, 0.2) 0%, rgba(64, 158, 255, 0.1) 100%);
+            border: 1px solid rgba(64, 158, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, rgba(64, 158, 255, 0.4) 0%, rgba(64, 158, 255, 0.2) 100%);
+            color: var(--text-white);
+            border-color: rgba(64, 158, 255, 0.6);
+            box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+
+        /* 汉堡菜单按钮 - 移动端专用 */
+        .hamburger-btn {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            margin-left: auto;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .hamburger-btn span {
+            width: 24px;
+            height: 2px;
+            background: linear-gradient(90deg, #ffffff, #b8d4ff);
+            border-radius: 2px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hamburger-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* 移动端侧边栏 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100vh;
+            background: linear-gradient(180deg, rgba(0, 15, 50, 0.98) 0%, rgba(0, 30, 80, 0.98) 100%);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 200;
+            transition: right 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            padding: 100px 35px 35px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: -10px 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.active {
+            right: 0;
+        }
+
+        .sidebar-close {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-white);
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .sidebar-item {
+            color: var(--text-white);
+            text-decoration: none;
+            font-size: 17px;
+            font-weight: 500;
+            padding: 16px 20px;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(64, 158, 255, 0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-item:hover {
+            color: var(--light-blue);
+            background: rgba(64, 158, 255, 0.1);
+            transform: translateX(8px);
+        }
+
+        .sidebar-item:hover::before {
+            opacity: 1;
+        }
+
+        /* 遮罩层 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0,0,0,0.6);
+            z-index: 199;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* ===================== 中间层：蓝色繁星面板（JS控制滚动变化） ===================== */
+        .slant-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: 
+                radial-gradient(ellipse at 20% 80%, rgba(64, 158, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(100, 180, 255, 0.1) 0%, transparent 50%),
+                linear-gradient(135deg, var(--deep-blue) 0%, var(--primary-blue) 50%, #001a4d 100%);
+            z-index: 1;
+            transition: clip-path 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            overflow: hidden;
+        }
+
+        .slant-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(90deg, 
+                    transparent 0px, 
+                    rgba(64, 158, 255, 0.03) 1px, 
+                    transparent 2px);
+            pointer-events: none;
+        }
+
+        /* 繁星容器 */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .stars span {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            border-radius: 50%;
+            background: #ffffff;
+            animation: twinkle 3s infinite alternate;
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+        }
+
+        .stars span:nth-child(3n) {
+            width: 3px;
+            height: 3px;
+            background: linear-gradient(135deg, #ffffff, #b8d4ff);
+            box-shadow: 0 0 10px rgba(100, 180, 255, 0.9);
+        }
+
+        .stars span:nth-child(5n) {
+            width: 1px;
+            height: 1px;
+            animation-duration: 2s;
+        }
+
+        .stars span:nth-child(7n) {
+            animation-duration: 4s;
+            animation-delay: 1s;
+        }
+
+        /* ===================== 最上层：置顶文字内容（永远在最前面，无冲突） ===================== */
+        .text-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* 标题样式 - 渐变文字效果 */
+        .text-container h2 {
+            font-size: clamp(28px, 6vw, 52px);
+            line-height: 1.4;
+            font-weight: 800;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e6ff 50%, #b8d4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 30px rgba(64, 158, 255, 0.2)); }
+            100% { filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 50px rgba(64, 158, 255, 0.4)); }
+        }
+
+        /* 列表样式 - 卡片式布局 */
+        .text-container p {
+            font-size: clamp(15px, 2.5vw, 18px);
+            line-height: 1.8;
+            color: var(--text-white);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px 16px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .text-container p span {
+            position: relative;
+            padding: 10px 20px 10px 36px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .text-container p span:hover {
+            background: rgba(64, 158, 255, 0.15);
+            border-color: rgba(64, 158, 255, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .text-container p span::before {
+            content: '✓';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            background: transparent;
+            color: var(--light-blue);
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(64, 158, 255, 0.8);
+        }
+
+        /* 手机端适配 */
+        @media screen and (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+            .hamburger-btn {
+                display: flex;
+            }
+            .navbar {
+                padding: 0 20px;
+                height: 65px;
+            }
+            .nav-logo img {
+                height: 38px;
+            }
+            .text-container {
+                width: 90%;
+                max-width: 500px;
+            }
+            .text-container h2 {
+                font-size: clamp(22px, 7vw, 36px);
+                margin-bottom: 30px;
+            }
+            .text-container p {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            .text-container p span {
+                padding: 8px 16px 8px 32px;
+                font-size: 15px;
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .navbar {
+                height: 60px;
+                padding: 0 16px;
+            }
+            .nav-logo img {
+                height: 34px;
+            }
+            .text-container {
+                width: 92%;
+            }
+            .text-container h2 {
+                font-size: clamp(20px, 6.5vw, 32px);
+                margin-bottom: 24px;
+                line-height: 1.3;
+            }
+            .text-container p span {
+                padding: 10px 14px 10px 30px;
+                font-size: 14px;
+                border-radius: 20px;
+            }
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 置顶导航栏（严格按需求简化） -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-logo">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=space%20game%20platform%20logo%20blue%20gold&image_size=square" alt="平台logo">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=star%20interconnection%20text%20logo%20blue%20gold&image_size=square" alt="品牌logo">
+        </div>
+        <!-- 仅保留指定的导航项 -->
+        <div class="nav-menu">
+            <a href="#" class="nav-item">首页</a>
+            <a href="#" class="nav-item">节点状态</a>
+            <a href="#" class="nav-item">整合包广场</a>
+            <a href="#" class="nav-item">游戏市场</a>
+        </div>
+        <div class="nav-user">
+            <a href="server.html" class="login-btn" id="loginBtn">控制台</a>
+        </div>
+        <!-- 移动端汉堡按钮 -->
+        <button class="hamburger-btn" id="hamburgerBtn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </nav>
+
+    <!-- 移动端侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose">×</button>
+        <a href="#" class="sidebar-item">首页</a>
+        <a href="#" class="sidebar-item">节点状态</a>
+        <a href="#" class="sidebar-item">整合包广场</a>
+        <a href="#" class="sidebar-item">游戏市场</a>
+        <a href="#" class="sidebar-item">个人中心</a>
+        <a href="#" class="sidebar-item">客服支持</a>
+    </div>
+    <div class="overlay" id="overlay"></div>
+
+    <!-- 中间层：蓝色繁星面板（JS控制滚动变化） -->
+    <div class="slant-panel" id="slantPanel">
+        <div class="stars" id="stars"></div>
+    </div>
+
+    <!-- 最上层：置顶文字内容（永远在最前面，无冲突） -->
+    <div class="text-container" id="textContainer"></div>
+
+    <script>
+        // ===================== 内容配置 =====================
+        const pageContent = [
+            {
+                title: "天津骨干BGP线路 全国20ms低延迟",
+                list: [
+                    "原生公网IP接入",
+                    "多线运营商冗余备份",
+                    "智能流量负载均衡",
+                    "99.99%服务在线率保障",
+                    "超低抖动无丢包"
+                ]
+            },
+            {
+                title: "企业级稳定数据库服务",
+                list: [
+                    "多副本实时热备",
+                    "自动定时快照备份",
+                    "秒级数据回滚恢复",
+                    "高并发低延迟读写优化",
+                    "分布式集群扩展支持"
+                ]
+            },
+            {
+                title: "全方位安全防火墙防护",
+                list: [
+                    "T级DDoS攻击清洗",
+                    "WAF应用层防火墙",
+                    "实时入侵检测与防御",
+                    "访问权限精细化管控",
+                    "恶意流量智能拦截"
+                ]
+            },
+            {
+                title: "全链路数据安全保障",
+                list: [
+                    "端到端TLS加密传输",
+                    "敏感数据脱敏存储",
+                    "全操作合规审计日志",
+                    "异地多副本容灾备份",
+                    "符合国家数据安全规范"
+                ]
+            },
+            {
+                title: "全天候售后支持与生态服务",
+                list: [
+                    "7×24小时在线技术支持",
+                    "专属玩家交流社群",
+                    "整合包一键部署广场",
+                    "正版游戏资源市场",
+                    "官方友链合作开放"
+                ]
+            },
+            {
+                title: "合规经营与信息公示",
+                list: [
+                    "ICP备案资质公示",
+                    "网络安全等级保护认证",
+                    "服务条款与隐私政策",
+                    "合规经营许可",
+                    "投诉建议反馈渠道"
+                ]
+            }
+        ];
+
+        // ===================== 基础功能 =====================
+        // 1. 移动端汉堡菜单
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const overlay = document.getElementById('overlay');
+
+        function openSidebar() {
+            hamburgerBtn.classList.add('active');
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            hamburgerBtn.classList.remove('active');
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        hamburgerBtn.addEventListener('click', () => {
+            if (sidebar.classList.contains('active')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+        sidebarClose.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', closeSidebar);
+        });
+
+        // ESC键关闭侧边栏
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                closeSidebar();
+            }
+        });
+
+        // 2. 生成繁星效果 - 优化版
+        const starsContainer = document.getElementById('stars');
+        const starCount = 100; // 恢复星星数量
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('span');
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 4 + 's';
+            star.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            star.style.opacity = Math.random() * 0.6 + 0.4;
+            starsContainer.appendChild(star);
+        }
+
+        // 鼠标移动视差效果 - 优化版
+        let mouseX = 0, mouseY = 0;
+        let currentX = 0, currentY = 0;
+        let lastUpdate = 0;
+        
+        function handleMouseMove(e) {
+            mouseX = (e.clientX / window.innerWidth - 0.5) * 20;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 20;
+        }
+        
+        function animateStars() {
+            const now = Date.now();
+            if (now - lastUpdate > 16) { // 约60fps
+                currentX += (mouseX - currentX) * 0.05;
+                currentY += (mouseY - currentY) * 0.05;
+                starsContainer.style.transform = `translate(${Math.round(currentX)}px, ${Math.round(currentY)}px)`;
+                lastUpdate = now;
+            }
+            requestAnimationFrame(animateStars);
+        }
+        
+        // 节流处理鼠标移动事件
+        let isMoving = false;
+        document.addEventListener('mousemove', (e) => {
+            if (!isMoving) {
+                isMoving = true;
+                requestAnimationFrame(() => {
+                    handleMouseMove(e);
+                    isMoving = false;
+                });
+            }
+        });
+        
+        animateStars();
+
+        // ===================== 核心：JS捕捉滚轮，控制蓝色面板变化 =====================
+        const slantPanel = document.getElementById('slantPanel');
+        const textContainer = document.getElementById('textContainer');
+        let viewHeight = window.innerHeight;
+        const totalStages = pageContent.length;
+
+        // 内容渲染函数
+        function renderContent(stageIndex) {
+            const content = pageContent[stageIndex];
+            const listHtml = content.list.map(item => `<span>${item}</span>`).join('');
+            // 淡入切换效果
+            textContainer.style.opacity = 0;
+            setTimeout(() => {
+                textContainer.innerHTML = `
+                    <h2>${content.title}</h2>
+                    <p>${listHtml}</p>
+                `;
+                textContainer.style.opacity = 1;
+            }, 200);
+        }
+
+        // 监听滚动事件，控制蓝色面板形状 - 节流版
+        let lastScrollY = 0;
+        let lastStage = -1;
+        
+        function handleScroll() {
+            const scrollY = window.scrollY;
+            // 计算当前阶段（0-5）
+            const currentStage = Math.min(Math.floor(scrollY / viewHeight), totalStages - 1);
+            
+            // 只在阶段变化时更新
+            if (currentStage !== lastStage) {
+                let clipPath = '';
+
+                // 分阶段控制蓝色面板的形状
+                switch(currentStage) {
+                    case 0:
+                        clipPath = 'polygon(0 0, 70% 0, 50% 100%, 0 100%)';
+                        break;
+                    case 1:
+                        clipPath = 'polygon(30% 0, 100% 0, 100% 100%, 50% 100%)';
+                        break;
+                    case 2:
+                        clipPath = 'polygon(0 50%, 100% 50%, 100% 100%, 0 100%)';
+                        break;
+                    case 3:
+                        clipPath = 'polygon(0 0, 100% 0, 100% 50%, 0 50%)';
+                        break;
+                    case 4:
+                        clipPath = 'polygon(0 0, 100% 0, 100% 100%, 0 100%)';
+                        break;
+                    case 5:
+                        clipPath = 'polygon(0 30%, 100% 30%, 100% 100%, 0 100%)';
+                        break;
+                }
+
+                // 应用蓝色面板的斜切形状
+                slantPanel.style.clipPath = clipPath;
+                slantPanel.style.webkitClipPath = clipPath;
+
+                // 渲染当前阶段的文字内容
+                renderContent(currentStage);
+                
+                lastStage = currentStage;
+            }
+            
+            lastScrollY = scrollY;
+        }
+        
+        // 节流处理滚动事件
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+
+        // 窗口大小变化适配 - 节流版
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                viewHeight = window.innerHeight;
+                handleScroll();
+            }, 100);
+        });
+
+        // 页面加载初始化
+        handleScroll();
+
+        // ===================== JWT令牌验证 =====================
+        // 检查用户是否已登录
+        function checkLoginStatus() {
+            const token = localStorage.getItem('token');
+            const userInfo = localStorage.getItem('userInfo');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            if(token && userInfo) {
+                // 用户已登录，更新导航栏
+                try {
+                    const user = JSON.parse(userInfo);
+                    loginBtn.textContent = user.username || '控制台';
+                } catch (e) {
+                    console.error('解析用户信息失败:', e);
+                }
+            }
+        }
+
+        // 页面加载时检查登录状态
+        window.addEventListener('DOMContentLoaded', checkLoginStatus);
+    </script>
+</body>
+</html>

@@ -19,10 +19,11 @@ PORT = 1250
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_FILE = os.path.join(BASE_DIR, "users.json")
 
-# JWT加密配置（重置密码用，自动生成的随机密钥，不用改）
+# JWT加密配置
 SECRET_KEY = os.urandom(32).hex()
 ALGORITHM = "HS256"
 RESET_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24小时
 
 # 你的QQ邮箱配置（已经填好你的授权码，直接用）
 SMTP_SERVER = "smtp.qq.com"
@@ -45,7 +46,7 @@ app.add_middleware(
 )
 
 # 密码哈希工具（自动生成随机盐，不用你管，每次加密结果都不一样，安全）
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # 验证码临时存储（key: 邮箱, value: {code: 验证码, expire: 过期时间戳}）
 code_storage = {}
@@ -99,10 +100,16 @@ def generate_new_uuid():
 
 # 4. 密码哈希（自动加随机盐，只有这个是加密的）
 def hash_password(password: str):
+    # bcrypt限制密码长度为72字节，超过需要截断
+    if len(password) > 72:
+        password = password[:72]
     return pwd_context.hash(password)
 
 # 5. 密码验证
 def verify_password(plain_password: str, hashed_password: str):
+    # bcrypt限制密码长度为72字节，超过需要截断
+    if len(plain_password) > 72:
+        plain_password = plain_password[:72]
     return pwd_context.verify(plain_password, hashed_password)
 
 # 6. 生成6位数字验证码
@@ -141,6 +148,14 @@ def verify_reset_token(token: str):
         return payload.get("sub")
     except JWTError:
         return None
+
+# 10. 生成访问令牌
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 # ===================== API接口（和前端完全对接） =====================
 # 健康检查接口（测试服务是否正常）
@@ -257,7 +272,9 @@ def user_login(data: LoginModel):
     
     # 返回用户信息（排除加密的密码）
     user_info = {k: v for k, v in user.items() if k != "hashed_password"}
-    return {"message": "登录成功", "user": user_info}
+    # 生成访问令牌
+    access_token = create_access_token(data={"sub": user["username"]})
+    return {"message": "登录成功", "user": user_info, "token": access_token}
 
 # 忘记密码接口
 @app.post("/api/forget-password")
