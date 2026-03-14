@@ -482,8 +482,8 @@
     <!-- 顶部导航栏 -->
     <nav class="navbar" id="navbar">
         <div class="nav-logo">
-            <img src="/jpg/logo1.jpg" alt="平台logo">
-            <img src="/jpg/logo2.jpg" alt="品牌logo">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=space%20game%20platform%20logo%20blue%20gold&image_size=square" alt="平台logo">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=star%20interconnection%20text%20logo%20blue%20gold&image_size=square" alt="品牌logo">
         </div>
         <div class="nav-menu">
             <a href="/html/index.html" class="nav-item">首页</a>
@@ -545,7 +545,7 @@
                             <input type="password" class="mobile-form-input" id="loginPassword" placeholder="请输入登录密码">
                         </div>
                         <div class="forget-pwd">
-                            
+                            <a href="#" id="toForget" style="color: var(--light-blue); cursor: pointer;">忘记密码？</a>
                         </div>
                         <button class="mobile-form-btn" id="loginBtn">立即登录</button>
                     </div>
@@ -597,7 +597,7 @@
 
     <script>
         // 后端接口地址
-        const API_BASE = "http://112.44.222.69:30072";
+        const API_BASE = "http://127.0.0.1:1250";
 
         // 提示弹窗工具
         function showToast(message, type = "success") {
@@ -745,7 +745,11 @@
                 const data = await res.json();
                 if(res.ok) {
                     showToast("登录成功！正在跳转...");
+                    // 存储用户信息和JWT令牌
                     localStorage.setItem("userInfo", JSON.stringify(data.user));
+                    if(data.token) {
+                        localStorage.setItem("token", data.token);
+                    }
                     setTimeout(() => window.location.href = "/html/index.html", 1500);
                 } else {
                     showToast(data.detail || "登录失败", "error");
@@ -853,6 +857,20 @@
                 }
             }
         });
+
+        // ===================== JWT令牌验证 =====================
+        // 检查用户是否已登录
+        function checkLoginStatus() {
+            const token = localStorage.getItem('token');
+            const userInfo = localStorage.getItem('userInfo');
+            if(token && userInfo) {
+                // 用户已登录，跳转到首页
+                window.location.href = "/server.html";
+            }
+        }
+
+        // 页面加载时检查登录状态
+        window.addEventListener('DOMContentLoaded', checkLoginStatus);
     </script>
 </body>
 </html>

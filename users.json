@@ -1,0 +1,11 @@
+[
+  {
+    "uuid": 1,
+    "username": "XS_star",
+    "email": "2224930586@qq.com",
+    "hashed_password": "$pbkdf2-sha256$29000$BwAgZEwppbTWupcSYqy1tg$brKH/xs4rD8qkTxz0H/Yp21jvlFsEizhxBFtGyCl8QU",
+    "points": 0,
+    "money": 0.0,
+    "create_time": "2026-03-13 22:02:19"
+  }
+]
